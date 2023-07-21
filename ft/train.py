@@ -83,23 +83,29 @@ def train(workdir: str, model_name: str,
             inputs, labels_ = FastTreeValue(inputs), FastTreeValue(labels_)
             inputs = inputs.to(accelerator.device)
             labels_ = labels_.to(accelerator.device)
+            tvb = inputs['attention_mask'].size(0)
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            train_total += labels_.shape[0]
+            train_total += tvb
             train_accs.append(acc_fn(outputs, labels_))
 
             loss = loss_fn(outputs, labels_)
             # loss.backward()
             accelerator.backward(loss)
             optimizer.step()
-            train_loss += loss.item() * inputs.size(0)
+            train_loss += loss.item() * tvb
             scheduler.step()
 
         train_accs = _torch_cat(train_accs, axis=-1).mean()
+        train_lv = {}
+        print(train_loss)
         tb_writer.add_scalar('train/loss', train_loss / train_total)
+        train_lv['loss'] = train_loss / train_total
         for key, value in train_accs.items():
             tb_writer.add_scalar(f'train/{key}', value)
+            train_lv[key] = value.detach().item()
+        logging.info(f'Train epoch {epoch!r}, metrics: {train_lv!r}')
 
         if epoch % eval_epoch == 0:
             model.eval()
@@ -107,22 +113,27 @@ def train(workdir: str, model_name: str,
                 test_loss = 0.0
                 test_total = 0
                 test_accs = []
-                for i, (ids, inputs, labels_) in enumerate(tqdm(test_dataloader)):
+                for i, (inputs, labels_) in enumerate(tqdm(test_dataloader)):
                     inputs, labels_ = FastTreeValue(inputs), FastTreeValue(labels_)
                     inputs = inputs.to(accelerator.device)
                     labels_ = labels_.to(accelerator.device)
+                    tvb = inputs['attention_mask'].size(0)
 
                     outputs = model(inputs)
-                    test_total += labels_.shape[0]
+                    test_total += tvb
                     test_accs.append(acc_fn(outputs, labels_))
 
                     loss = loss_fn(outputs, labels_)
-                    test_loss += loss.item() * inputs.size(0)
+                    test_loss += loss.item() * tvb
 
                 test_accs = _torch_cat(test_accs, axis=-1).mean()
+                test_lv = {}
                 tb_writer.add_scalar('test/loss', test_loss / test_total)
+                test_lv['loss'] = test_loss / test_total
                 for key, value in test_accs.items():
                     tb_writer.add_scalar(f'test/{key}', value)
+                    test_lv[key] = value.detach().item()
+                logging.info(f'Test epoch {epoch!r}, metrics: {test_lv!r}')
 
                 ckpt_file = os.path.join(ckpt_dir, f'model-{epoch}.ckpt')
                 logging.info(f'Save epoch {epoch!r} to {ckpt_file!r}')
