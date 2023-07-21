@@ -100,10 +100,10 @@ def train(workdir: str, model_name: str,
         train_accs = _torch_cat(train_accs, axis=-1).mean()
         train_lv = {}
         print(train_loss)
-        tb_writer.add_scalar('train/loss', train_loss / train_total)
+        tb_writer.add_scalar('train/loss', train_loss / train_total, epoch)
         train_lv['loss'] = train_loss / train_total
         for key, value in train_accs.items():
-            tb_writer.add_scalar(f'train/{key}', value)
+            tb_writer.add_scalar(f'train/{key}', value, epoch)
             train_lv[key] = value.detach().item()
         logging.info(f'Train epoch {epoch!r}, metrics: {train_lv!r}')
 
@@ -128,10 +128,10 @@ def train(workdir: str, model_name: str,
 
                 test_accs = _torch_cat(test_accs, axis=-1).mean()
                 test_lv = {}
-                tb_writer.add_scalar('test/loss', test_loss / test_total)
+                tb_writer.add_scalar('test/loss', test_loss / test_total, epoch)
                 test_lv['loss'] = test_loss / test_total
                 for key, value in test_accs.items():
-                    tb_writer.add_scalar(f'test/{key}', value)
+                    tb_writer.add_scalar(f'test/{key}', value, epoch)
                     test_lv[key] = value.detach().item()
                 logging.info(f'Test epoch {epoch!r}, metrics: {test_lv!r}')
 
