@@ -69,12 +69,11 @@ def train(workdir: str, model_name: str,
         pct_start=0.15, final_div_factor=20.
     )
 
-    model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn = \
-        accelerator.prepare(model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn)
+    model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn, acc_fn = \
+        accelerator.prepare(model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn, acc_fn)
 
     session = TrainSession(workdir, key_metric='acc/min')
     for epoch in range(1, max_epochs + 1):
-        logging.info(f'Epoch {epoch} start')
         train_loss = 0.0
         train_total = 0
         train_accs = []
@@ -103,7 +102,7 @@ def train(workdir: str, model_name: str,
             current_acc = value.detach().item()
             train_lv[f'acc/{key}'] = current_acc
             accs.append(current_acc)
-        train_lv['acc/min'] = np.minimum(accs)
+        train_lv['acc/min'] = np.min(accs)
         train_lv['acc/mean'] = np.mean(accs)
         session.tb_train_log(epoch, train_lv)
 
@@ -133,6 +132,6 @@ def train(workdir: str, model_name: str,
                     current_acc = value.detach().item()
                     test_lv[key] = current_acc
                     accs.append(current_acc)
-                test_lv['acc/min'] = np.minimum(accs)
+                test_lv['acc/min'] = np.min(accs)
                 test_lv['acc/mean'] = np.mean(accs)
                 session.tb_eval_log(epoch, model, test_lv)
