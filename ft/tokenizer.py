@@ -23,9 +23,6 @@ def register_tokenizer_trans(name, pretrained_model_name_or_path, *inputs, **kwa
     register_tokenizer(name, _tokenize_func)
 
 
-
-
-
 def tokenize(sentence, tokenizer_name: str, align_size: int = 64):
     tokens = _TOKENIZERS[tokenizer_name](sentence)
     input_ids = tokens['input_ids']

@@ -7,3 +7,5 @@ scipy
 treevalue>=1.4.0
 di-toolkit>=0.1.0
 tensorboard
+hbutils>=0.9.1
+accelerate

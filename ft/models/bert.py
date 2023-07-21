@@ -1,11 +1,14 @@
-from typing import Optional
+from typing import Optional, Mapping, Tuple
 
 import torch
 from torch import nn
 from transformers import DistilBertForSequenceClassification
 from treevalue import TreeValue
 
-from ..encoders import register_encoder
+from .base import register_model
+from ..encoders import register_encoder, create_encoder
+from ..mlp import MultiHeadMLP
+from ..squeeze import create_squeezer
 from ..tokenizer import register_tokenizer_trans
 
 DEFAULT_ENGLISH_CKPT = "distilbert-base-uncased"
@@ -70,3 +73,38 @@ def create_bert_encoder(ckpt=DEFAULT_ENGLISH_CKPT, cls=DEFAULT_ENGLISH_CLS) -> E
 
 
 register_encoder('bert', create_bert_encoder)
+
+
+class BertFineTune(nn.Module):
+    def __init__(self, head_n_classes: Mapping[str, int], squeezer: str,
+                 mlp_in_featurs: int, mlp_layers: Tuple[int, ...] = (1024,)):
+        nn.Module.__init__(self)
+        self.encoder = create_encoder('bert')
+        self.squeezer = create_squeezer(squeezer)
+        self.mlp = MultiHeadMLP(mlp_in_featurs, head_n_classes, mlp_layers)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.squeezer(x)
+        x = self.mlp(x)
+        return x
+
+
+class BertMeanFineTune(BertFineTune):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+        BertFineTune.__init__(self, head_n_classes, 'mean', emb_size)
+
+
+class BertLastFineTune(BertFineTune):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+        BertFineTune.__init__(self, head_n_classes, 'last', emb_size)
+
+
+class BertLinearFineTune(BertFineTune):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+        BertFineTune.__init__(self, head_n_classes, 'linear', emb_size * align_size)
+
+
+register_model('bert_mean', BertMeanFineTune)
+register_model('bert_last', BertLastFineTune)
+register_model('bert_linear', BertLinearFineTune)
