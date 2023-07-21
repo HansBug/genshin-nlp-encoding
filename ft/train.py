@@ -28,7 +28,7 @@ _torch_cat = FastTreeValue.func(subside=True)(torch.cat)
 def train(workdir: str, model_name: str,
           datasource: str, text_column: str = _DEFAULT_TEXT_COLUMN, data_columns: List[str] = None,
           max_epochs: int = 500, learning_rate: float = 0.001, weight_decay: float = 1e-3, batch_size: int = 16,
-          eval_epoch: int = 5, val_ratio: float = 0.2,
+          eval_epoch: int = 1, val_ratio: float = 0.2,
           seed: Optional[int] = None):
     if seed is not None:
         # native random, numpy, torch and faker's seeds are includes
@@ -62,7 +62,10 @@ def train(workdir: str, model_name: str,
     loss_fn = MultiHeadFocalLoss(dataset.column_n_classes)
     acc_fn = MultiHeadAccuracy(dataset.column_n_classes)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = torch.optim.AdamW(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=learning_rate, weight_decay=weight_decay
+    )
     scheduler = lr_scheduler.OneCycleLR(
         optimizer, max_lr=learning_rate,
         steps_per_epoch=len(train_dataloader), epochs=max_epochs,
@@ -130,7 +133,7 @@ def train(workdir: str, model_name: str,
                 accs = []
                 for key, value in test_accs.items():
                     current_acc = value.detach().item()
-                    test_lv[key] = current_acc
+                    test_lv[f'acc/{key}'] = current_acc
                     accs.append(current_acc)
                 test_lv['acc/min'] = np.min(accs)
                 test_lv['acc/mean'] = np.mean(accs)

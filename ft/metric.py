@@ -23,11 +23,12 @@ class Accuracy(nn.Module):
 class MultiHeadAccuracy(nn.Module):
     def __init__(self, column_n_classes: Mapping[str, int], mode='native'):
         nn.Module.__init__(self)
-        self.losses = {
+        mapping = {
             name: Accuracy(n_classes, mode)
             for name, n_classes in column_n_classes.items()
         }
-        self.losses_tv = FastTreeValue(self.losses)
+        self.losses = nn.ModuleDict(mapping)
+        self.losses_tv = FastTreeValue(mapping)
 
     def forward(self, logits, labels):
         return self.losses_tv(logits, labels)

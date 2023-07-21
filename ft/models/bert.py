@@ -80,6 +80,7 @@ class BertFineTune(nn.Module):
                  mlp_in_featurs: int, mlp_layers: Tuple[int, ...] = (1024,)):
         nn.Module.__init__(self)
         self.encoder = create_encoder('bert')
+        self.encoder.requires_grad_(False)
         self.squeezer = create_squeezer(squeezer)
         self.mlp = MultiHeadMLP(mlp_in_featurs, head_n_classes, mlp_layers)
 

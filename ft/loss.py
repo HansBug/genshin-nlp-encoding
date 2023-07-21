@@ -40,18 +40,18 @@ class MultiHeadFocalLoss(nn.Module):
     def __init__(self, column_n_classes: Mapping[str, int], columns_weights: Mapping[str, float] = None,
                  gamma=2., reduction='mean', weight=None):
         nn.Module.__init__(self)
-        self.loss = {
+        l_mapping = {
             name: FocalLoss(n_classes, gamma, reduction, weight)
             for name, n_classes in column_n_classes.items()
         }
-        self.loss_tv = FastTreeValue(self.loss)
+        self.loss = nn.ModuleDict(l_mapping)
+        self.loss_tv = FastTreeValue(l_mapping)
 
         columns_weights = dict(columns_weights or {})
-        self.column_weights = {
+        self.column_weights_tv = FastTreeValue({
             name: torch.tensor(columns_weights.get(name, 1.0))
             for name in column_n_classes.keys()
-        }
-        self.column_weights_tv = FastTreeValue(self.column_weights)
+        })
 
     def forward(self, logits, labels):
         return _tree_sum(self.loss_tv(logits, labels) * self.column_weights_tv) / _tree_sum(self.column_weights_tv)

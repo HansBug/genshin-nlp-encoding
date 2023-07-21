@@ -28,10 +28,10 @@ class MultiHeadMLP(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.layers = layers
-        self.mlps = {
+        self.mlps = nn.ModuleDict({
             o_name: MLP(in_features, o_feat, layers)
             for o_name, o_feat in self.out_features.items()
-        }
+        })
 
     def forward(self, x):
         return FastTreeValue({
