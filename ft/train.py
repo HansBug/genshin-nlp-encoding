@@ -1,13 +1,13 @@
 import os
 from typing import Optional, List
 
+import numpy as np
 import torch
 from accelerate import Accelerator
 from ditk import logging
 from hbutils.random import global_seed
 from torch.optim import lr_scheduler
 from torch.utils.data import random_split, DataLoader
-from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
 from treevalue import FastTreeValue
 
@@ -15,6 +15,7 @@ from .dataset import MarkedTextDataset
 from .loss import MultiHeadFocalLoss
 from .metric import MultiHeadAccuracy
 from .models import create_model
+from .session import TrainSession
 
 _DEFAULT_TEXT_COLUMN = 'desc_en'
 _DEFAULT_DATA_COLUMNS = [
@@ -37,9 +38,6 @@ def train(workdir: str, model_name: str,
         global_seed(seed)
 
     os.makedirs(workdir, exist_ok=True)
-    tb_writer = SummaryWriter(workdir)
-    ckpt_dir = os.path.join(workdir, 'ckpts')
-    os.makedirs(ckpt_dir, exist_ok=True)
     accelerator = Accelerator(
         # mixed_precision=self.cfgs.mixed_precision,
         step_scheduler_with_optimizer=False,
@@ -60,7 +58,7 @@ def train(workdir: str, model_name: str,
     test_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
     logging.info(f'Creating model {model_name!r}, with {dataset.column_n_classes}')
-    model = create_model(model_name, dataset.column_n_classes)
+    model = create_model(model_name, head_n_classes=dataset.column_n_classes)
     loss_fn = MultiHeadFocalLoss(dataset.column_n_classes)
     acc_fn = MultiHeadAccuracy(dataset.column_n_classes)
 
@@ -74,6 +72,7 @@ def train(workdir: str, model_name: str,
     model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn = \
         accelerator.prepare(model, optimizer, train_dataloader, test_dataloader, scheduler, loss_fn)
 
+    session = TrainSession(workdir, key_metric='acc/min')
     for epoch in range(1, max_epochs + 1):
         logging.info(f'Epoch {epoch} start')
         train_loss = 0.0
@@ -98,14 +97,15 @@ def train(workdir: str, model_name: str,
             scheduler.step()
 
         train_accs = _torch_cat(train_accs, axis=-1).mean()
-        train_lv = {}
-        print(train_loss)
-        tb_writer.add_scalar('train/loss', train_loss / train_total, epoch)
-        train_lv['loss'] = train_loss / train_total
+        train_lv = {'loss': train_loss / train_total}
+        accs = []
         for key, value in train_accs.items():
-            tb_writer.add_scalar(f'train/{key}', value, epoch)
-            train_lv[key] = value.detach().item()
-        logging.info(f'Train epoch {epoch!r}, metrics: {train_lv!r}')
+            current_acc = value.detach().item()
+            train_lv[f'acc/{key}'] = current_acc
+            accs.append(current_acc)
+        train_lv['acc/min'] = np.minimum(accs)
+        train_lv['acc/mean'] = np.mean(accs)
+        session.tb_train_log(epoch, train_lv)
 
         if epoch % eval_epoch == 0:
             model.eval()
@@ -127,14 +127,12 @@ def train(workdir: str, model_name: str,
                     test_loss += loss.item() * tvb
 
                 test_accs = _torch_cat(test_accs, axis=-1).mean()
-                test_lv = {}
-                tb_writer.add_scalar('test/loss', test_loss / test_total, epoch)
-                test_lv['loss'] = test_loss / test_total
+                test_lv = {'loss': test_loss / test_total}
+                accs = []
                 for key, value in test_accs.items():
-                    tb_writer.add_scalar(f'test/{key}', value, epoch)
-                    test_lv[key] = value.detach().item()
-                logging.info(f'Test epoch {epoch!r}, metrics: {test_lv!r}')
-
-                ckpt_file = os.path.join(ckpt_dir, f'model-{epoch}.ckpt')
-                logging.info(f'Save epoch {epoch!r} to {ckpt_file!r}')
-                torch.save(model.state_dict(), ckpt_file)
+                    current_acc = value.detach().item()
+                    test_lv[key] = current_acc
+                    accs.append(current_acc)
+                test_lv['acc/min'] = np.minimum(accs)
+                test_lv['acc/mean'] = np.mean(accs)
+                session.tb_eval_log(epoch, model, test_lv)
