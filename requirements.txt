@@ -9,3 +9,6 @@ di-toolkit>=0.1.0
 tensorboard
 hbutils>=0.9.1
 accelerate
+pillow
+scikit-learn
+matplotlib

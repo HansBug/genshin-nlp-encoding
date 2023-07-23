@@ -9,12 +9,13 @@ from hbutils.random import global_seed
 from torch.optim import lr_scheduler
 from torch.utils.data import random_split, DataLoader
 from tqdm.auto import tqdm
-from treevalue import FastTreeValue
+from treevalue import FastTreeValue, union
 
 from .dataset import MarkedTextDataset
 from .loss import MultiHeadFocalLoss
 from .metric import MultiHeadAccuracy
 from .models import create_model
+from .plot import plt_export, plt_confusion_matrix
 from .session import TrainSession
 
 _DEFAULT_TEXT_COLUMN = 'desc_en'
@@ -54,7 +55,7 @@ def train(workdir: str, model_name: str,
     train_cnt = len(dataset) - test_cnt
     train_dataset, val_dataset = random_split(dataset, [train_cnt, test_cnt])
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=False)
     test_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
     logging.info(f'Creating model {model_name!r}, with {dataset.column_n_classes}')
@@ -80,6 +81,7 @@ def train(workdir: str, model_name: str,
         train_loss = 0.0
         train_total = 0
         train_accs = []
+        train_pred, train_true = [], []
         for i, (inputs, labels_) in enumerate(tqdm(train_dataloader)):
             inputs, labels_ = FastTreeValue(inputs), FastTreeValue(labels_)
             inputs = inputs.to(accelerator.device)
@@ -90,6 +92,8 @@ def train(workdir: str, model_name: str,
             outputs = model(inputs)
             train_total += tvb
             train_accs.append(acc_fn(outputs, labels_))
+            train_pred.append(outputs.argmax(axis=-1))
+            train_true.append(labels_)
 
             loss = loss_fn(outputs, labels_)
             # loss.backward()
@@ -98,16 +102,29 @@ def train(workdir: str, model_name: str,
             train_loss += loss.item() * tvb
             scheduler.step()
 
+        # metrics
         train_accs = _torch_cat(train_accs, axis=-1).mean()
-        train_lv = {'loss': train_loss / train_total}
+        train_metrics = {'loss': train_loss / train_total}
         accs = []
         for key, value in train_accs.items():
             current_acc = value.detach().item()
-            train_lv[f'acc/{key}'] = current_acc
+            train_metrics[f'acc/{key}'] = current_acc
             accs.append(current_acc)
-        train_lv['acc/min'] = np.min(accs)
-        train_lv['acc/mean'] = np.mean(accs)
-        session.tb_train_log(epoch, train_lv)
+        train_metrics['acc/min'] = np.min(accs)
+        train_metrics['acc/mean'] = np.mean(accs)
+
+        # plots
+        train_pred = _torch_cat(train_pred, axis=-1)
+        train_true = _torch_cat(train_true, axis=-1)
+        train_plots = {}
+        for key, (t_pred, t_true) in union(train_pred, train_true).items():
+            train_plots[f'cm/{key}'] = plt_export(
+                plt_confusion_matrix,
+                t_true, t_pred, dataset.column_labels[key],
+                title=f'Train Confusion Epoch {epoch} - {key}',
+                figsize=(6, 6),
+            )
+        session.tb_train_log(epoch, {**train_metrics, **train_plots})
 
         if epoch % eval_epoch == 0:
             model.eval()
@@ -115,6 +132,7 @@ def train(workdir: str, model_name: str,
                 test_loss = 0.0
                 test_total = 0
                 test_accs = []
+                test_pred, test_true = [], []
                 for i, (inputs, labels_) in enumerate(tqdm(test_dataloader)):
                     inputs, labels_ = FastTreeValue(inputs), FastTreeValue(labels_)
                     inputs = inputs.to(accelerator.device)
@@ -124,17 +142,32 @@ def train(workdir: str, model_name: str,
                     outputs = model(inputs)
                     test_total += tvb
                     test_accs.append(acc_fn(outputs, labels_))
+                    test_pred.append(outputs.argmax(axis=-1))
+                    test_true.append(labels_)
 
                     loss = loss_fn(outputs, labels_)
                     test_loss += loss.item() * tvb
 
+                # metrics
                 test_accs = _torch_cat(test_accs, axis=-1).mean()
-                test_lv = {'loss': test_loss / test_total}
+                test_metrics = {'loss': test_loss / test_total}
                 accs = []
                 for key, value in test_accs.items():
                     current_acc = value.detach().item()
-                    test_lv[f'acc/{key}'] = current_acc
+                    test_metrics[f'acc/{key}'] = current_acc
                     accs.append(current_acc)
-                test_lv['acc/min'] = np.min(accs)
-                test_lv['acc/mean'] = np.mean(accs)
-                session.tb_eval_log(epoch, model, test_lv)
+                test_metrics['acc/min'] = np.min(accs)
+                test_metrics['acc/mean'] = np.mean(accs)
+
+                # plots
+                test_pred = _torch_cat(test_pred, axis=-1)
+                test_true = _torch_cat(test_true, axis=-1)
+                test_plots = {}
+                for key, (t_pred, t_true) in union(test_pred, test_true).items():
+                    test_plots[f'cm/{key}'] = plt_export(
+                        plt_confusion_matrix,
+                        t_true, t_pred, dataset.column_labels[key],
+                        title=f'Test Confusion Epoch {epoch} - {key}',
+                        figsize=(6, 6),
+                    )
+                session.tb_eval_log(epoch, model, {**test_metrics, **test_plots})

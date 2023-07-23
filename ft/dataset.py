@@ -26,13 +26,17 @@ class MarkedTextDataset(Dataset):
 
         self.data_columns = data_columns
         self.column_values = {}
-        self.column_maps = {}
+        self.column_labels = {}
         self.column_n_classes = {}
         for dc in data_columns:
             column = self.df[dc]
             uni, values = np.unique(column, return_inverse=True)
             self.column_values[dc] = values
-            self.column_maps[dc] = {tvalue: value.item() for tvalue, value in zip(column, values)}
+            labels = []
+            for i, (tvalue, value) in enumerate(sorted(set(zip(column, values)), key=lambda x: x[1])):
+                assert i == value.item()
+                labels.append(tvalue)
+            self.column_labels[dc] = labels
             self.column_n_classes[dc] = len(uni)
 
     def __getitem__(self, item):
