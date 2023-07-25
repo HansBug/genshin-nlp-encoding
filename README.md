@@ -51,7 +51,7 @@ class ModelWithEncoding(nn.Module):
 
         return FastTreeValue({
             'encoded': encoded,
-            'prediced': predicted,
+            'predicted': predicted,
         })
 
 

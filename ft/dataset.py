@@ -11,7 +11,7 @@ from .tokenizer import tokenize
 
 class MarkedTextDataset(Dataset):
     def __init__(self, file: str, text_column: str, data_columns: List[str],
-                 tokenizer: str = 'bert', token_size: int = 64):
+                 tokenizer: str = 'bert', token_size: int = 256):
         _, ext = os.path.splitext(file)
         if ext in {'.csv'}:
             self.df = pd.read_csv(ext)

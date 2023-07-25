@@ -93,17 +93,17 @@ class BertFineTune(nn.Module):
 
 
 class BertMeanFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
         BertFineTune.__init__(self, head_n_classes, 'mean', emb_size)
 
 
 class BertLastFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
         BertFineTune.__init__(self, head_n_classes, 'last', emb_size)
 
 
 class BertLinearFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 64, emb_size: int = 768):
+    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
         BertFineTune.__init__(self, head_n_classes, 'linear', emb_size * align_size)
 
 
