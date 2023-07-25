@@ -15,7 +15,7 @@ pip install -r requirements.txt
 ```python
 from ditk import logging
 
-from ft.train import train
+from gende.train import train
 
 if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
@@ -36,8 +36,8 @@ import torch
 from torch import nn
 from treevalue import FastTreeValue
 
-from ft import tokenize
-from ft.models import load_model_from_ckpt
+from gende import tokenize
+from gende.models import load_model_from_ckpt
 
 
 class ModelWithEncoding(nn.Module):
