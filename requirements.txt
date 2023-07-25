@@ -12,3 +12,4 @@ accelerate
 pillow
 scikit-learn
 matplotlib
+openpyxl
