@@ -2,6 +2,14 @@
 
 NLP Encoder fine-tuning for Genshin Impact
 
+## Install
+
+```shell
+git clone https://github.com/HansBug/genshin-nlp-encoding.git
+cd genshin-nlp-encoding
+pip install -r requirements.txt
+```
+
 ## Train
 
 ```python
