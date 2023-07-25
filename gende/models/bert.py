@@ -110,3 +110,6 @@ class BertLinearFineTune(BertFineTune):
 register_model('bert_mean', BertMeanFineTune)
 register_model('bert_last', BertLastFineTune)
 register_model('bert_linear', BertLinearFineTune)
+register_model('bert_mean_512', BertMeanFineTune, align_size=512)
+register_model('bert_last_512', BertLastFineTune, align_size=512)
+register_model('bert_linear_512', BertLinearFineTune, align_size=512)

@@ -29,7 +29,7 @@ _torch_cat = FastTreeValue.func(subside=True)(torch.cat)
 def train(workdir: str, model_name: str,
           datasource: str, text_column: str = _DEFAULT_TEXT_COLUMN, data_columns: List[str] = None,
           max_epochs: int = 500, learning_rate: float = 0.001, weight_decay: float = 1e-3, batch_size: int = 16,
-          eval_epoch: int = 1, val_ratio: float = 0.2,
+          eval_epoch: int = 1, val_ratio: float = 0.2, token_size: int = 256,
           seed: Optional[int] = None):
     if seed is not None:
         # native random, numpy, torch and faker's seeds are includes
@@ -50,6 +50,7 @@ def train(workdir: str, model_name: str,
         datasource,
         text_column=text_column,
         data_columns=data_columns or _DEFAULT_DATA_COLUMNS,
+        token_size=token_size,
     )
     test_cnt = int(len(dataset) * val_ratio)
     train_cnt = len(dataset) - test_cnt
