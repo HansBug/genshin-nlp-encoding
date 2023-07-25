@@ -81,13 +81,14 @@ class BertFineTune(nn.Module):
         nn.Module.__init__(self)
         self.encoder = create_encoder('bert')
         self.encoder.requires_grad_(False)
-        self.squeezer = create_squeezer(squeezer)
-        self.mlp = MultiHeadMLP(mlp_in_featurs, head_n_classes, mlp_layers)
+        self.ft = nn.Sequential(
+            create_squeezer(squeezer),
+            MultiHeadMLP(mlp_in_featurs, head_n_classes, mlp_layers)
+        )
 
     def forward(self, x):
         x = self.encoder(x)
-        x = self.squeezer(x)
-        x = self.mlp(x)
+        x = self.ft(x)
         return x
 
 
