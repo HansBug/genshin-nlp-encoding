@@ -59,8 +59,8 @@ def train(workdir: str, model_name: str,
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=False)
     test_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
-    logging.info(f'Creating model {model_name!r}, with {dataset.column_n_classes}')
-    model = create_model(model_name, head_n_classes=dataset.column_n_classes)
+    logging.info(f'Creating model {model_name!r}, with {dataset.column_labels}')
+    model = create_model(model_name, head_labels=dataset.column_labels)
     loss_fn = MultiHeadFocalLoss(dataset.column_n_classes)
     acc_fn = MultiHeadAccuracy(dataset.column_n_classes)
 

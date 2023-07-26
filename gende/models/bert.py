@@ -1,4 +1,4 @@
-from typing import Optional, Mapping, Tuple
+from typing import Optional, Mapping, Tuple, List
 
 import torch
 from torch import nn
@@ -76,11 +76,12 @@ register_encoder('bert', create_bert_encoder)
 
 
 class BertFineTune(nn.Module):
-    def __init__(self, head_n_classes: Mapping[str, int], squeezer: str,
+    def __init__(self, head_labels: Mapping[str, List[str]], squeezer: str,
                  mlp_in_featurs: int, mlp_layers: Tuple[int, ...] = (1024,)):
         nn.Module.__init__(self)
         self.encoder = create_encoder('bert')
         self.encoder.requires_grad_(False)
+        head_n_classes = {key: len(value) for key, value in head_labels.items()}
         self.ft = nn.Sequential(
             create_squeezer(squeezer),
             MultiHeadMLP(mlp_in_featurs, head_n_classes, mlp_layers)
@@ -93,18 +94,18 @@ class BertFineTune(nn.Module):
 
 
 class BertMeanFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
-        BertFineTune.__init__(self, head_n_classes, 'mean', emb_size)
+    def __init__(self, head_labels: Mapping[str, List[str]], align_size: int = 256, emb_size: int = 768):
+        BertFineTune.__init__(self, head_labels, 'mean', emb_size)
 
 
 class BertLastFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
-        BertFineTune.__init__(self, head_n_classes, 'last', emb_size)
+    def __init__(self, head_labels: Mapping[str, List[str]], align_size: int = 256, emb_size: int = 768):
+        BertFineTune.__init__(self, head_labels, 'last', emb_size)
 
 
 class BertLinearFineTune(BertFineTune):
-    def __init__(self, head_n_classes: Mapping[str, int], align_size: int = 256, emb_size: int = 768):
-        BertFineTune.__init__(self, head_n_classes, 'linear', emb_size * align_size)
+    def __init__(self, head_labels: Mapping[str, List[str]], align_size: int = 256, emb_size: int = 768):
+        BertFineTune.__init__(self, head_labels, 'linear', emb_size * align_size)
 
 
 register_model('bert_mean', BertMeanFineTune)

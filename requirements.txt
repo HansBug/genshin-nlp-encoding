@@ -13,3 +13,4 @@ pillow
 scikit-learn
 matplotlib
 openpyxl
+click>=7
