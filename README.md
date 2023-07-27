@@ -33,6 +33,7 @@ if __name__ == '__main__':
 
 ```python
 import torch
+from huggingface_hub import hf_hub_download
 from torch import nn
 from treevalue import FastTreeValue
 
@@ -59,7 +60,11 @@ _torch_stack = FastTreeValue.func(subside=True)(torch.stack)
 
 if __name__ == '__main__':
     # use your ckpt here!
-    m = load_model_from_ckpt('runs/bert_mean_new_seed_0/ckpts/best.ckpt')
+    ckpt_file = hf_hub_download(
+        'HansBug/genshin-nlp-finetuning',
+        'bert_mean_v1.1_seed_0/model.ckpt',
+    )
+    m = load_model_from_ckpt(ckpt_file)
     m = ModelWithEncoding(m)
     print(m)
 
