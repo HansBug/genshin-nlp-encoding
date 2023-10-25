@@ -14,7 +14,7 @@ class MarkedTextDataset(Dataset):
                  tokenizer: str = 'bert', token_size: int = 256):
         _, ext = os.path.splitext(file)
         if ext in {'.csv'}:
-            self.df = pd.read_csv(ext)
+            self.df = pd.read_csv(file)
         elif ext in {'.xls', '.xlsx'}:
             self.df = pd.read_excel(file)
         else:
